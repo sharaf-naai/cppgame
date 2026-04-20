@@ -13,7 +13,7 @@ Player::Player(float startX, float startY)
     shape.setSize({60.f, 60.f});
 
     // 1. Load the image using the absolute path that we KNOW works!
-    if (!texture.loadFromFile("C:/Users/chara/Desktop/cmake-sfml-project-master/cmake-sfml-project-master/src/player.png")) {
+    if (!texture.loadFromFile("../src/player.png")) {
         std::cerr << "WARNING: Could not load player.png!\n";
         shape.setFillColor(sf::Color::Magenta);
         sprite.setColor(sf::Color::Transparent);

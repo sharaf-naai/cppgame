@@ -20,7 +20,7 @@ Game::Game()
     window.setFramerateLimit(60);
     std::srand(static_cast<unsigned>(std::time(nullptr)));
 
-    std::string path = "C:/Users/chara/Desktop/cmake-sfml-project-master/cmake-sfml-project-master/src/";
+    std::string path = "../src/";
 
     // BACKGROUND LAYERS
     if (!backTexture.loadFromFile(path + "back.png")) std::cerr << "WARNING: Could not load back.png!\n";
@@ -126,7 +126,7 @@ Game::Game()
     }
 
     // FONT & TEXT
-    if (!font.openFromFile("C:/Users/chara/Desktop/cmake-sfml-project-master/cmake-sfml-project-master/src/pixelfont.ttf")) std::cerr << "WARNING: Could not load font.\n";
+    if (!font.openFromFile(path + "pixelfont.ttf")) std::cerr << "WARNING: Could not load font.\n";
 
     scoreText.setCharacterSize(24); scoreText.setFillColor(sf::Color::White);
     scoreText.setOutlineColor(sf::Color::Black); scoreText.setOutlineThickness(2.f);
