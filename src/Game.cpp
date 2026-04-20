@@ -2,19 +2,19 @@
 #include <iostream>
 #include <cstdlib>
 #include <ctime>
-#include <cmath> // Added for atan2 math!
+#include <cmath>
 
 Game::Game()
-    : window(sf::VideoMode({1280, 720}), "Forest Platformer - Level 1 Complete!"),
+    : window(sf::VideoMode({1280, 720}), "Forest Platformer - Classic Mode"),
       backTexture(), farTexture(), middleTexture(), platformTexture(),
       coinTex(), shieldTex(), healthTex(), bowTex(), goldenBowTex(), arrowTex(),
-      bossTex(), fireballTex(), // ADDED BOSS AND FIREBALL TEX
+      bossTex(), fireballTex(),
       ghostTex(), skeletonTex(), spiderTex(),
       playerHeartTex(), bossHeartTex(), ammoTex(),
       backSprite(backTexture), farSprite(farTexture), middleSprite(middleTexture),
       playerHeartSprite(playerHeartTex), bossHeartSprite(bossHeartTex), ammoIconSprite(ammoTex),
-      player(50.f, 700.f), gameState(GameState::PLAYING), gunSpawned(false), coinSpawnTimer(0.f), shotgunSpawnTimer(0.f),
-      currentScore(0.f), checkpointScore(0.f), currentLevel(1), checkpointLevel(1),
+      player(50.f, 700.f), gameState(GameState::MENU),
+      gunSpawned(false), coinSpawnTimer(0.f), shotgunSpawnTimer(0.f), currentScore(0.f),
       scoreText(font), stateText(font), coinText(font), ammoText(font)
 {
     window.setFramerateLimit(60);
@@ -126,7 +126,7 @@ Game::Game()
     }
 
     // FONT & TEXT
-    if (!font.openFromFile("C:/Windows/Fonts/arial.ttf")) std::cerr << "WARNING: Could not load font.\n";
+    if (!font.openFromFile("C:/Users/chara/Desktop/cmake-sfml-project-master/cmake-sfml-project-master/src/pixelfont.ttf")) std::cerr << "WARNING: Could not load font.\n";
 
     scoreText.setCharacterSize(24); scoreText.setFillColor(sf::Color::White);
     scoreText.setOutlineColor(sf::Color::Black); scoreText.setOutlineThickness(2.f);
@@ -142,7 +142,7 @@ Game::Game()
     stateText.setCharacterSize(50); stateText.setFillColor(sf::Color::Red);
     stateText.setOutlineColor(sf::Color::White); stateText.setOutlineThickness(3.f);
 
-    loadLevel(1);
+    setupLevel();
 }
 
 void Game::run() {
@@ -152,13 +152,14 @@ void Game::run() {
     while (window.isOpen()) {
         float dt = dtClock.restart().asSeconds();
         processEvents();
-        if (gameState == GameState::PLAYING || gameState == GameState::BOSS_FIGHT) update(dt);
+        if (gameState == GameState::PLAYING || gameState == GameState::BOSS_FIGHT) {
+            update(dt);
+        }
         render();
     }
 }
 
-void Game::loadLevel(int level) {
-    currentLevel = level;
+void Game::setupLevel() {
     platforms.clear(); enemies.clear(); playerBullets.clear(); bossBullets.clear(); coins.clear();
     boss.reset(); player.resetCoins();
     healthPotion.active = false; healthPotion.cooldownTimer = 0.f;
@@ -168,18 +169,13 @@ void Game::loadLevel(int level) {
 
     float platHeight = 50.f;
 
-    if (level == 1) {
-        createPlatform(-100.f, 720.f - platHeight, 2000.f, platHeight);
-        createPlatform(150.f, 550.f, 200.f, platHeight);
-        createPlatform(450.f, 400.f, 250.f, platHeight);
-        createPlatform(850.f, 450.f, 180.f, platHeight);
-        createPlatform(1050.f, 250.f, 200.f, platHeight);
-        createPlatform(300.f, 200.f, 150.f, platHeight);
-        player.resetPosition(50.f, 720.f - platHeight);
-    } else {
-        createPlatform(-100.f, 720.f - platHeight, 2000.f, platHeight);
-        player.resetPosition(50.f, 720.f - platHeight);
-    }
+    createPlatform(-100.f, 720.f - platHeight, 2000.f, platHeight);
+    createPlatform(150.f, 550.f, 200.f, platHeight);
+    createPlatform(450.f, 400.f, 250.f, platHeight);
+    createPlatform(850.f, 450.f, 180.f, platHeight);
+    createPlatform(1050.f, 250.f, 200.f, platHeight);
+    createPlatform(300.f, 200.f, 150.f, platHeight);
+    player.resetPosition(50.f, 720.f - platHeight);
 
     survivalClock.restart();
 }
@@ -196,7 +192,7 @@ void Game::resetGunTimer() { gunSpawned = false; gunPickup.active = false; targe
 
 std::vector<float> Game::getValidSpawnY() const {
     std::vector<float> lanes;
-    if (currentLevel == 1) lanes.push_back(player.getFloorY());
+    lanes.push_back(player.getFloorY());
     for (const auto& plat : platforms) lanes.push_back(plat.getPosition().y);
     return lanes;
 }
@@ -204,17 +200,33 @@ std::vector<float> Game::getValidSpawnY() const {
 void Game::processEvents() {
     while (const std::optional event = window.pollEvent()) {
         if (event->is<sf::Event::Closed>()) window.close();
+
         if (const auto* keyEvent = event->getIf<sf::Event::KeyPressed>()) {
-            if (gameState == GameState::LEVEL_TRANSITION && keyEvent->code == sf::Keyboard::Key::Enter) {
-                checkpointLevel = 2; checkpointScore = currentScore;
-                loadLevel(2); gameState = GameState::PLAYING;
+
+            if (keyEvent->code == sf::Keyboard::Key::Q) {
+                window.close();
             }
-            else if (gameState == GameState::GAME_OVER && keyEvent->code == sf::Keyboard::Key::R) {
-                currentScore = checkpointScore; loadLevel(checkpointLevel); gameState = GameState::PLAYING;
+
+            if (gameState == GameState::MENU) {
+                if (keyEvent->code == sf::Keyboard::Key::S) {
+                    currentScore = 0.f;
+                    setupLevel();
+                    gameState = GameState::PLAYING;
+                } else if (keyEvent->code == sf::Keyboard::Key::A) {
+                    gameState = GameState::ABOUT;
+                }
             }
-            else if (gameState == GameState::WIN && keyEvent->code == sf::Keyboard::Key::R) {
-                checkpointLevel = 1; checkpointScore = 0.f; currentScore = 0.f;
-                loadLevel(1); gameState = GameState::PLAYING;
+            else if (gameState == GameState::ABOUT) {
+                if (keyEvent->code == sf::Keyboard::Key::B || keyEvent->code == sf::Keyboard::Key::Escape) {
+                    gameState = GameState::MENU;
+                }
+            }
+            else if (gameState == GameState::GAME_OVER || gameState == GameState::WIN) {
+                if (keyEvent->code == sf::Keyboard::Key::R) {
+                    currentScore = 0.f;
+                    setupLevel();
+                    gameState = GameState::PLAYING;
+                }
             }
         }
     }
@@ -226,11 +238,8 @@ void Game::spawnCoin() {
     int pIdx = std::rand() % platforms.size();
     const auto& plat = platforms[pIdx];
 
-    spawnX = plat.getPosition().x + (std::rand() % static_cast<int>(std::max(1.f, plat.getSize().x - 20.f)));
+    spawnX = plat.getPosition().x + static_cast<float>(std::rand() % static_cast<int>(std::max(1.f, plat.getSize().x - 20.f)));
 
-    // ==========================================
-    // THE FIX: FORCE COIN TO STAY ON SCREEN
-    // ==========================================
     if (spawnX < 50.f) spawnX = 50.f;
     if (spawnX > 1200.f) spawnX = 1200.f;
 
@@ -249,7 +258,7 @@ void Game::update(float dt) {
 
     if (player.getHealth() <= 0) {
         gameState = GameState::GAME_OVER;
-        stateText.setString("GAME OVER\nScore: " + std::to_string(static_cast<int>(currentScore)) + "\nPress R to Restart Level " + std::to_string(checkpointLevel));
+        stateText.setString("GAME OVER\nScore: " + std::to_string(static_cast<int>(currentScore)) + "\nPress R to Restart\nPress Q to Quit");
         stateText.setFillColor(sf::Color::Red);
         sf::FloatRect bounds = stateText.getLocalBounds();
         stateText.setPosition({640.f - (bounds.size.x / 2.f), 300.f});
@@ -262,7 +271,7 @@ void Game::update(float dt) {
             healthPotion.active = true;
             if (!platforms.empty()) {
                 int pIdx = std::rand() % platforms.size();
-                float spawnX = platforms[pIdx].getPosition().x + (std::rand() % static_cast<int>(std::max(1.f, platforms[pIdx].getSize().x - 15.f)));
+                float spawnX = platforms[pIdx].getPosition().x + static_cast<float>(std::rand() % static_cast<int>(std::max(1.f, platforms[pIdx].getSize().x - 15.f)));
 
                 healthPotion.shape.setPosition({spawnX, platforms[pIdx].getPosition().y - 70.f});
                 healthPotion.shape.setFillColor(sf::Color::White);
@@ -295,19 +304,15 @@ void Game::update(float dt) {
         } else if (gameState == GameState::BOSS_FIGHT && boss) {
             if (bIt->getBounds().findIntersection(boss->getBounds())) {
                 int damage = bIt->isShotgun ? std::max(1, 4 - static_cast<int>(std::abs(boss->getPosition().x + boss->getSize().x/2.f - bIt->originX) / 150.f)) : 1;
-                boss->takeDamage(damage); currentScore += 100.f * damage; hit = true;
+                boss->takeDamage(damage); currentScore += 100.f * static_cast<float>(damage); hit = true;
 
                 if (boss->getHealth() <= 0) {
                     currentScore += 5000.f + std::max(0.f, 15000.f - (survivalTime * 150.f));
-                    if (currentLevel == 1) {
-                        gameState = GameState::LEVEL_TRANSITION;
-                        stateText.setString("LEVEL 1 COMPLETE!\nPress ENTER for Level 2");
-                        stateText.setFillColor(sf::Color::Yellow);
-                    } else {
-                        gameState = GameState::WIN;
-                        stateText.setString("YOU WIN!\nFinal Score: " + std::to_string(static_cast<int>(currentScore)) + "\nPress R to Restart");
-                        stateText.setFillColor(sf::Color::Yellow);
-                    }
+
+                    gameState = GameState::WIN;
+                    stateText.setString("YOU WIN!\nFinal Score: " + std::to_string(static_cast<int>(currentScore)) + "\nPress R to Restart\nPress Q to Quit");
+                    stateText.setFillColor(sf::Color::Green);
+
                     sf::FloatRect bounds = stateText.getLocalBounds();
                     stateText.setPosition({640.f - (bounds.size.x / 2.f), 300.f});
                     return;
@@ -335,11 +340,15 @@ void Game::update(float dt) {
             if (player.getBounds().findIntersection(cIt->shape.getGlobalBounds())) {
                 cIt = coins.erase(cIt); player.addCoin(); currentScore += 500.f;
                 if (player.getCoins() >= 8) {
-                    gameState = GameState::BOSS_FIGHT; player.triggerBossMode(currentLevel);
+                    gameState = GameState::BOSS_FIGHT;
+
+                    // FIXED: Now passing '1' to satisfy Player.h
+                    player.triggerBossMode(1);
+
                     enemies.clear(); gunPickup.active = false;
 
-                    if (currentLevel == 1) boss = std::make_unique<Level1Boss>(1100.f, 250.f);
-                    else boss = std::make_unique<CloudBoss>(640.f, 50.f);
+                    // FIXED: Now instantiating Level1Boss to satisfy Boss.h
+                    boss = std::make_unique<Level1Boss>(1100.f, 250.f);
 
                     break;
                 }
@@ -354,7 +363,6 @@ void Game::update(float dt) {
                 float selectedLaneY = spawnLanes[std::rand() % spawnLanes.size()];
                 bool isOnBottomGround = (selectedLaneY >= 650.f);
 
-                sf::Vector2f playerSize = player.getBounds().size;
                 sf::Vector2f enemySize = {60.0f, 60.0f};
 
                 int enemyType; float targetY; bool isFlying;
@@ -364,10 +372,10 @@ void Game::update(float dt) {
                     targetY = selectedLaneY - enemySize.y;
                 } else {
                     isFlying = true; enemyType = 0;
-                    targetY = selectedLaneY - enemySize.y - 10.f - (std::rand() % 40);
+                    targetY = selectedLaneY - enemySize.y - 10.f - static_cast<float>(std::rand() % 40);
                 }
 
-                float speed = 150.f + (((survivalTime < 10.f) ? 0 : (static_cast<int>(survivalTime) - 10) / 5) * 40.f) + (std::rand() % 200);
+                float speed = 150.f + (((survivalTime < 10.f) ? 0.f : static_cast<float>(static_cast<int>(survivalTime) - 10) / 5.f) * 40.f) + static_cast<float>(std::rand() % 200);
                 enemies.emplace_back(1300.f, targetY, speed, isFlying);
 
                 if (enemyType == 0) enemies.back().shape.setTexture(&ghostTex);
@@ -388,29 +396,22 @@ void Game::update(float dt) {
     }
     else if (gameState == GameState::BOSS_FIGHT && boss) {
 
-        // ==========================================
-        // NEW: BOSS TEXTURE & PIVOTING LOGIC
-        // ==========================================
         if (boss->shape.getTexture() == nullptr) {
             boss->shape.setTexture(&bossTex);
             boss->shape.setFillColor(sf::Color::White);
 
-            // ---> CHANGE BOSS SIZE HERE <---
-            boss->shape.setSize({150.f, 150.f}); // Change these numbers to whatever you want!
+            boss->shape.setSize({150.f, 150.f});
 
-            // Move origin to the exact center so scaling -1 flips him in place
             sf::Vector2f bSize = boss->shape.getSize();
             boss->shape.setOrigin({bSize.x / 2.f, bSize.y / 2.f});
             boss->shape.move({bSize.x / 2.f, bSize.y / 2.f});
         }
 
-        // Pivot Boss: If player is to the left, scale is normal (1). If right, scale is flipped (-1).
         if (player.getCenter().x < boss->shape.getPosition().x) {
-            boss->shape.setScale({1.f, 1.f});  // Facing Left
+            boss->shape.setScale({1.f, 1.f});
         } else {
-            boss->shape.setScale({-1.f, 1.f}); // Facing Right
+            boss->shape.setScale({-1.f, 1.f});
         }
-        // ==========================================
 
         boss->update(dt, bossBullets, player.getFloorY(), player.getCenter());
 
@@ -420,7 +421,7 @@ void Game::update(float dt) {
                 shieldPickup.active = true;
                 if (!platforms.empty()) {
                     int pIdx = std::rand() % platforms.size();
-                    shieldPickup.shape.setPosition({platforms[pIdx].getPosition().x + (std::rand() % static_cast<int>(std::max(1.f, platforms[pIdx].getSize().x - 24.f))), platforms[pIdx].getPosition().y - 70.f});
+                    shieldPickup.shape.setPosition({platforms[pIdx].getPosition().x + static_cast<float>(std::rand() % static_cast<int>(std::max(1.f, platforms[pIdx].getSize().x - 24.f))), platforms[pIdx].getPosition().y - 70.f});
                     shieldPickup.shape.setFillColor(sf::Color::White);
                     shieldPickup.shape.setTexture(&shieldTex);
                     shieldPickup.shape.setScale({3.0f, 3.0f});
@@ -445,27 +446,15 @@ void Game::update(float dt) {
         }
 
         for (auto bIt = bossBullets.begin(); bIt != bossBullets.end(); ) {
-            // ==========================================
-            // NEW: FIREBALL ROTATION LOGIC
-            // ==========================================
             if (bIt->shape.getTexture() == nullptr) {
                 bIt->shape.setTexture(&fireballTex);
                 bIt->shape.setFillColor(sf::Color::White);
-
-                // Set fireball size
                 bIt->shape.setSize({40.f, 20.f});
-
-                // Center origin so it rotates correctly on its axis
                 bIt->shape.setOrigin({20.f, 10.f});
 
-                // Trig Math: calculate angle based on X/Y velocity
                 float angle = std::atan2(bIt->velocity.y, bIt->velocity.x) * 180.f / 3.14159f;
-
-                // Note: Adding 180 degrees assumes the fireball image naturally points left.
-                // If it looks like it's flying backwards, change this to: angle + 0.f
-                bIt->shape.setRotation(sf::degrees(angle + 180.f)); // WRAPPED IN sf::degrees()
+                bIt->shape.setRotation(sf::degrees(angle + 180.f));
             }
-            // ==========================================
 
             bIt->update(dt);
             if (player.getBounds().findIntersection(bIt->getBounds())) { player.takeDamage(2); bIt = bossBullets.erase(bIt); }
@@ -486,6 +475,52 @@ void Game::render() {
     window.draw(backSprite);
     window.draw(farSprite);
     window.draw(middleSprite);
+
+    if (gameState == GameState::MENU || gameState == GameState::ABOUT) {
+        sf::RectangleShape overlay({1280.f, 720.f});
+        overlay.setFillColor(sf::Color(0, 0, 0, 150));
+        window.draw(overlay);
+
+        sf::Text menuText(font);
+        menuText.setFillColor(sf::Color::White);
+        menuText.setOutlineColor(sf::Color::Black);
+        menuText.setOutlineThickness(3.f);
+
+        if (gameState == GameState::MENU) {
+            menuText.setCharacterSize(80);
+            menuText.setFillColor(sf::Color::Yellow);
+            menuText.setString("FOREST PLATFORMER");
+            sf::FloatRect bounds = menuText.getLocalBounds();
+            menuText.setPosition({640.f - bounds.size.x / 2.f, 150.f});
+            window.draw(menuText);
+
+            menuText.setCharacterSize(35);
+            menuText.setFillColor(sf::Color::White);
+            menuText.setString("Press 'S' to Start\n\nPress 'A' for About\n\nPress 'Q' to Quit");
+            bounds = menuText.getLocalBounds();
+            menuText.setPosition({640.f - bounds.size.x / 2.f, 350.f});
+            window.draw(menuText);
+        }
+        else if (gameState == GameState::ABOUT) {
+            menuText.setCharacterSize(60);
+            menuText.setFillColor(sf::Color::Cyan);
+            menuText.setString("HOW TO PLAY");
+            sf::FloatRect bounds = menuText.getLocalBounds();
+            menuText.setPosition({640.f - bounds.size.x / 2.f, 100.f});
+            window.draw(menuText);
+
+            menuText.setCharacterSize(30);
+            menuText.setFillColor(sf::Color::White);
+            menuText.setString("Left / Right Arrows  :  Move\nSpacebar  :  Jump\nX  :  Shoot Weapon\n\nCollect 8 Coins to summon the Boss!\nSurvive and defeat the Boss to win.\n\nPress 'B' to Return to Menu\nPress 'Q' to Quit");
+            bounds = menuText.getLocalBounds();
+            menuText.setPosition({640.f - bounds.size.x / 2.f, 250.f});
+            window.draw(menuText);
+        }
+
+        window.display();
+        return;
+    }
+
     for (const auto& platform : platforms) window.draw(platform);
 
     for (const auto& enemy : enemies) enemy.draw(window);
@@ -526,6 +561,7 @@ void Game::render() {
             window.draw(ammoIconSprite);
         }
     }
-    if (gameState == GameState::GAME_OVER || gameState == GameState::WIN || gameState == GameState::LEVEL_TRANSITION) window.draw(stateText);
+
+    if (gameState == GameState::GAME_OVER || gameState == GameState::WIN) window.draw(stateText);
     window.display();
 }

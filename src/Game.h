@@ -11,7 +11,7 @@ class Game {
 private:
     sf::RenderWindow window;
 
-    // --- EXISTING BACKGROUND/PLATFORM LAYERS ---
+    // --- BACKGROUND/PLATFORM LAYERS ---
     sf::Texture backTexture;
     sf::Texture farTexture;
     sf::Texture middleTexture;
@@ -20,9 +20,8 @@ private:
     sf::Sprite backSprite;
     sf::Sprite farSprite;
     sf::Sprite middleSprite;
-    // (Note: groundSprite should still be removed)
 
-    // --- NEW: UI & WORLD OBJECT TEXTURES ---
+    // --- UI & WORLD OBJECT TEXTURES ---
     sf::Texture coinTex;
     sf::Texture shieldTex;
     sf::Texture healthTex;
@@ -30,24 +29,23 @@ private:
     sf::Texture playerHeartTex;
     sf::Texture bossHeartTex;
 
-    // ADD THESE THREE NEW ENEMY TEXTURES:
+    // --- ENEMY TEXTURES ---
     sf::Texture ghostTex;
     sf::Texture skeletonTex;
     sf::Texture spiderTex;
 
+    // --- BOSS TEXTURES ---
     sf::Texture bossTex;
     sf::Texture fireballTex;
 
-    // --- NEW: UI SPRITES ---
+    // --- UI SPRITES ---
     sf::Sprite playerHeartSprite;
     sf::Sprite bossHeartSprite;
     sf::Sprite ammoIconSprite;
 
-    // ADD THESE TWO NEW TEXTURES:
+    // --- WEAPON TEXTURES ---
     sf::Texture bowTex;
     sf::Texture goldenBowTex;
-
-    // ADD THIS NEW TEXTURE:
     sf::Texture arrowTex;
 
     Player player;
@@ -58,7 +56,7 @@ private:
     std::vector<Coin> coins;
 
     std::unique_ptr<Boss> boss;
-    
+
     GameState gameState;
 
     GunPickup gunPickup;
@@ -71,15 +69,14 @@ private:
     float coinSpawnTimer;
     float shotgunSpawnTimer;
     float currentScore;
-    float checkpointScore;
-    int currentLevel;
-    int checkpointLevel;
+
     sf::Clock enemySpawnClock;
     sf::Font font;
     sf::Text scoreText, coinText, stateText, ammoText;
     sf::Clock survivalClock;
 
-    void loadLevel(int level);
+    // --- INTERNAL METHODS ---
+    void setupLevel(); // Replaced loadLevel(int level)
     void createPlatform(float x, float y, float width, float height);
     void resetGunTimer();
     std::vector<float> getValidSpawnY() const;
