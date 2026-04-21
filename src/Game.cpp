@@ -5,227 +5,153 @@
 #include <cmath>
 
 Game::Game()
-    : window(sf::VideoMode({1280, 720}), "Forest Platformer - Classic Mode"),
-      backTexture(), farTexture(), middleTexture(), platformTexture(),
-      coinTex(), shieldTex(), healthTex(), bowTex(), goldenBowTex(), arrowTex(),
-      bossTex(), fireballTex(),
-      ghostTex(), skeletonTex(), spiderTex(),
-      playerHeartTex(), bossHeartTex(), ammoTex(),
-      backSprite(backTexture), farSprite(farTexture), middleSprite(middleTexture),
-      playerHeartSprite(playerHeartTex), bossHeartSprite(bossHeartTex), ammoIconSprite(ammoTex),
-      player(50.f, 700.f), gameState(GameState::MENU),
+    : window(sf::VideoMode({1280, 720}), "Emberwood Arena"),
+      player(50.f, 700.f), gameState(GameState::MENU), targetGunSpawnTime(0.f),
       gunSpawned(false), coinSpawnTimer(0.f), shotgunSpawnTimer(0.f), currentScore(0.f),
-      scoreText(font), stateText(font), coinText(font), ammoText(font)
+      isGamePaused(false), survivalTime(0.f), enemySpawnTimer(0.f), kills(0)
 {
     window.setFramerateLimit(60);
     std::srand(static_cast<unsigned>(std::time(nullptr)));
 
-    std::string path = "C:/Users/chara/Desktop/cmake-sfml-project-master/cmake-sfml-project-master/src/";
+    // Update this path if your Assets folder moves!
+    std::string path = "C:/Users/chara/Desktop/cmake-sfml-project-master/cmake-sfml-project-master/Assets/";
 
-    // BACKGROUND LAYERS
-    if (!backTexture.loadFromFile(path + "back.png")) std::cerr << "WARNING: Could not load back.png!\n";
-    else {
-        backTexture.setRepeated(true);
-        float scale = 720.f / static_cast<float>(backTexture.getSize().y);
-        backSprite.setTexture(backTexture, true);
-        backSprite.setScale({scale, scale});
-        backSprite.setTextureRect(sf::IntRect({0, 0}, {static_cast<int>(1280.f / scale), static_cast<int>(backTexture.getSize().y)}));
+    // 1. Load Audio
+    audio.playMusic("backmusic.wav", path);
+    audio.loadSound("coin", "coin.wav", path);
+    audio.loadSound("jump", "jump.wav", path);
+    audio.loadSound("hurt", "playerdamage.wav", path);
+    audio.loadSound("pickup", "itempickup.wav", path);
+    audio.loadSound("hit", "monsterhit.wav", path);
+    audio.loadSound("shoot", "arrowshoot.wav", path);
+
+    // 2. Load Assets
+    assets.loadFont("pixelfont.ttf", path);
+
+    assets.loadTexture("back", "back.png", path);
+    assets.loadTexture("far", "far.png", path);
+    assets.loadTexture("middle", "middle.png", path);
+    assets.loadTexture("platform", "forest.png", path);
+
+    assets.loadTexture("coin", "Coins.png", path);
+    assets.loadTexture("shield", "shield.png", path);
+    assets.loadTexture("health", "health.png", path);
+    assets.loadTexture("arrow", "Arrow.png", path);
+    assets.loadTexture("fireball", "fireball.png", path);
+
+    assets.loadTexture("ghostFly", "ghostFly.png", path);
+    assets.loadTexture("ghostDie", "ghostDeath.png", path);
+    assets.loadTexture("skeletonRun", "skeletonRun.png", path);
+    assets.loadTexture("skeletonDie", "SkeletonDeath.png", path);
+
+    assets.loadTexture("bossIdle", "spiderIdle.png", path);
+    assets.loadTexture("bossWalk", "spiderwalk.png", path);
+    assets.loadTexture("bossAttack", "spiderAttack.png", path);
+    assets.loadTexture("bossHit", "spiderHit.png", path);
+    assets.loadTexture("bossDeath", "spiderDeath.png", path);
+    assets.loadTexture("bossBullet", "BulletSpider.png", path);
+
+    // --- ADD THESE 4 LINES TO FIX THE GLITCHY RENDERING! ---
+    assets.getTexture("back").setRepeated(true);
+    assets.getTexture("far").setRepeated(true);
+    assets.getTexture("middle").setRepeated(true);
+    assets.getTexture("platform").setRepeated(true);
+    // -------------------------------------------------------
+
+    assets.loadTexture("playerIdle", "Idle_2.png", path);
+    assets.loadTexture("playerRun", "Run.png", path);
+    assets.loadTexture("playerJump", "Jump.png", path);
+    assets.loadTexture("playerShot", "Shot.png", path);
+    assets.loadTexture("playerHurt", "Hurt.png", path);
+    assets.loadTexture("playerDead", "Dead.png", path);
+    assets.loadTexture("playerRecharge", "Recharge.png", path);
+
+    assets.loadTexture("bow", "bow.png", path);
+    assets.loadTexture("goldenbow", "goldenbow.png", path);
+    assets.loadTexture("ammo", "ammo.png", path);
+    assets.loadTexture("heart", "heart.png", path);
+    assets.loadTexture("bossheart", "bossheart.png", path);
+
+    // 3. Initialize Managers
+    level.initBackgrounds(assets.getTexture("back"), assets.getTexture("far"), assets.getTexture("middle"));
+    level.initPlatforms(assets.getTexture("platform"));
+    ui.init(assets.getFont(), assets.getTexture("heart"), assets.getTexture("bossheart"), assets.getTexture("ammo"));
+
+    // 4. Initialize Pickups
+    if(assets.getTexture("health").getSize().x > 0) {
+        healthPotion.shape.setSize(sf::Vector2f(assets.getTexture("health").getSize()));
+        healthPotion.shape.setScale({3.f, 3.f});
+        healthPotion.shape.setTexture(&assets.getTexture("health"));
+    }
+    if(assets.getTexture("shield").getSize().x > 0) {
+        shieldPickup.shape.setSize(sf::Vector2f(assets.getTexture("shield").getSize()));
+        shieldPickup.shape.setScale({3.f, 3.f});
+        shieldPickup.shape.setTexture(&assets.getTexture("shield"));
+    }
+    if(assets.getTexture("bow").getSize().x > 0) {
+        gunPickup.shape.setSize(sf::Vector2f(assets.getTexture("bow").getSize()));
+        gunPickup.shape.setScale({.08f, .08f});
+        gunPickup.shape.setTexture(&assets.getTexture("bow"));
+    }
+    if(assets.getTexture("goldenbow").getSize().x > 0) {
+        shotgunPickup.shape.setSize(sf::Vector2f(assets.getTexture("goldenbow").getSize()));
+        shotgunPickup.shape.setScale({.1f, .1f});
+        shotgunPickup.shape.setTexture(&assets.getTexture("goldenbow"));
     }
 
-    if (!farTexture.loadFromFile(path + "far.png")) std::cerr << "WARNING: Could not load far.png!\n";
-    else {
-        farTexture.setRepeated(true);
-        float scale = 720.f / static_cast<float>(farTexture.getSize().y);
-        farSprite.setTexture(farTexture, true);
-        farSprite.setScale({scale, scale});
-        farSprite.setTextureRect(sf::IntRect({0, 0}, {static_cast<int>(1280.f / scale), static_cast<int>(farTexture.getSize().y)}));
-    }
-
-    if (!middleTexture.loadFromFile(path + "middle.png")) std::cerr << "WARNING: Could not load middle.png!\n";
-    else {
-        middleTexture.setRepeated(true);
-        float scale = 720.f / static_cast<float>(middleTexture.getSize().y);
-        middleSprite.setTexture(middleTexture, true);
-        middleSprite.setScale({scale, scale});
-        middleSprite.setTextureRect(sf::IntRect({0, 0}, {static_cast<int>(1280.f / scale), static_cast<int>(middleTexture.getSize().y)}));
-    }
-
-    // PLATFORM LAYER
-    if (!platformTexture.loadFromFile(path + "forest.png")) {
-        std::cerr << "WARNING: Could not load forest.png for platforms!\n";
-    } else {
-        platformTexture.setRepeated(true);
-    }
-
-    // WORLD ITEMS
-    if (!coinTex.loadFromFile(path + "Coins.png")) std::cerr << "WARNING: Could not load Coins.png\n";
-    if (!shieldTex.loadFromFile(path + "shield.png")) std::cerr << "WARNING: Could not load shield.png\n";
-    if (!healthTex.loadFromFile(path + "health.png")) std::cerr << "WARNING: Could not load health.png\n";
-
-    // PROJECTILES & BOSS
-    if (!arrowTex.loadFromFile(path + "Arrow.png")) std::cerr << "WARNING: Could not load Arrow.png\n";
-    if (!bossTex.loadFromFile(path + "boss.png")) std::cerr << "WARNING: Could not load boss.png\n";
-    if (!fireballTex.loadFromFile(path + "fireball.png")) std::cerr << "WARNING: Could not load fireball.png\n";
-
-    // ENEMY TEXTURES
-    if (!ghostTex.loadFromFile(path + "enemy.png")) std::cerr << "WARNING: Could not load enemy.png\n";
-    if (!skeletonTex.loadFromFile(path + "skeleton.png")) std::cerr << "WARNING: Could not load skeleton.png\n";
-    if (!spiderTex.loadFromFile(path + "spider.png")) std::cerr << "WARNING: Could not load spider.png\n";
-
-    // POTION INITIALIZATION
-    if (healthTex.getSize().x > 0) {
-        healthPotion.shape.setSize(sf::Vector2f(healthTex.getSize()));
-        healthPotion.shape.setScale({3.0f, 3.0f});
-        healthPotion.shape.setFillColor(sf::Color::White);
-        healthPotion.shape.setOutlineThickness(0.f);
-    }
-
-    if (shieldTex.getSize().x > 0) {
-        shieldPickup.shape.setSize(sf::Vector2f(shieldTex.getSize()));
-        shieldPickup.shape.setScale({3.0f, 3.0f});
-        shieldPickup.shape.setFillColor(sf::Color::White);
-        shieldPickup.shape.setOutlineThickness(0.f);
-    }
-
-    // WEAPON INITIALIZATION
-    if (!bowTex.loadFromFile(path + "bow.png")) std::cerr << "WARNING: Could not load bow.png\n";
-    if (bowTex.getSize().x > 0) {
-        gunPickup.shape.setSize(sf::Vector2f(bowTex.getSize()));
-        gunPickup.shape.setScale({4.5f, 4.5f});
-        gunPickup.shape.setFillColor(sf::Color::White);
-        gunPickup.shape.setOutlineThickness(0.f);
-        gunPickup.shape.setTexture(&bowTex);
-    }
-
-    if (!goldenBowTex.loadFromFile(path + "goldenbow.png")) std::cerr << "WARNING: Could not load goldenbow.png\n";
-    if (goldenBowTex.getSize().x > 0) {
-        shotgunPickup.shape.setSize(sf::Vector2f(goldenBowTex.getSize()));
-        shotgunPickup.shape.setScale({4.5f, 4.5f});
-        shotgunPickup.shape.setFillColor(sf::Color::White);
-        shotgunPickup.shape.setOutlineThickness(0.f);
-        shotgunPickup.shape.setTexture(&goldenBowTex);
-    }
-
-    // UI ITEMS
-    if (!ammoTex.loadFromFile(path + "ammo.png")) std::cerr << "WARNING: Could not load ammo.png\n";
-    else {
-        ammoIconSprite.setTexture(ammoTex, true);
-        ammoIconSprite.setScale({2.5f, 2.5f});
-    }
-
-    if (!playerHeartTex.loadFromFile(path + "heart.png")) std::cerr << "WARNING: Could not load heart.png\n";
-    else {
-        playerHeartSprite.setTexture(playerHeartTex, true);
-        playerHeartSprite.setScale({2.5f, 2.5f});
-    }
-
-    if (!bossHeartTex.loadFromFile(path + "bossheart.png")) std::cerr << "WARNING: Could not load bossheart.png\n";
-    else {
-        bossHeartSprite.setTexture(bossHeartTex, true);
-        bossHeartSprite.setScale({2.5f, 2.5f});
-    }
-
-    // FONT & TEXT
-    if (!font.openFromFile("C:/Users/chara/Desktop/cmake-sfml-project-master/cmake-sfml-project-master/src/pixelfont.ttf")) std::cerr << "WARNING: Could not load font.\n";
-
-    scoreText.setCharacterSize(24); scoreText.setFillColor(sf::Color::White);
-    scoreText.setOutlineColor(sf::Color::Black); scoreText.setOutlineThickness(2.f);
-
-    coinText.setCharacterSize(24); coinText.setFillColor(sf::Color::Yellow);
-    coinText.setOutlineColor(sf::Color::Black); coinText.setOutlineThickness(2.f);
-    coinText.setPosition({1130.f, 20.f});
-
-    ammoText.setCharacterSize(20); ammoText.setFillColor(sf::Color::White);
-    ammoText.setOutlineColor(sf::Color::Black); ammoText.setOutlineThickness(2.f);
-    ammoText.setPosition({1080.f, 60.f});
-
-    stateText.setCharacterSize(50); stateText.setFillColor(sf::Color::Red);
-    stateText.setOutlineColor(sf::Color::White); stateText.setOutlineThickness(3.f);
+    player.setAnimationTextures(
+        assets.getTexture("playerIdle"), assets.getTexture("playerRun"), assets.getTexture("playerJump"),
+        assets.getTexture("playerShot"), assets.getTexture("playerHurt"), assets.getTexture("playerDead"),
+        assets.getTexture("playerRecharge")
+    );
 
     setupLevel();
 }
 
 void Game::run() {
     sf::Clock dtClock;
-    survivalClock.restart();
-    enemySpawnClock.restart();
     while (window.isOpen()) {
         float dt = dtClock.restart().asSeconds();
         processEvents();
-        if (gameState == GameState::PLAYING || gameState == GameState::BOSS_FIGHT) {
-            update(dt);
-        }
+        if (!isGamePaused && (gameState == GameState::PLAYING || gameState == GameState::BOSS_FIGHT)) update(dt);
         render();
     }
 }
 
 void Game::setupLevel() {
-    platforms.clear(); enemies.clear(); playerBullets.clear(); bossBullets.clear(); coins.clear();
+    enemies.clear(); playerBullets.clear(); bossBullets.clear(); coins.clear();
     boss.reset(); player.resetCoins();
     healthPotion.active = false; healthPotion.cooldownTimer = 0.f;
     shieldPickup.active = false; shieldPickup.cooldownTimer = 20.f;
     shotgunPickup.active = false; shotgunSpawnTimer = 0.f;
+    survivalTime = 0.f; enemySpawnTimer = 0.f; isGamePaused = false; kills = 0;
     resetGunTimer();
 
-    float platHeight = 50.f;
-
-    createPlatform(-100.f, 720.f - platHeight, 2000.f, platHeight);
-    createPlatform(150.f, 550.f, 200.f, platHeight);
-    createPlatform(450.f, 400.f, 250.f, platHeight);
-    createPlatform(850.f, 450.f, 180.f, platHeight);
-    createPlatform(1050.f, 250.f, 200.f, platHeight);
-    createPlatform(300.f, 200.f, 150.f, platHeight);
-    player.resetPosition(50.f, 720.f - platHeight);
-
-    survivalClock.restart();
-}
-
-void Game::createPlatform(float x, float y, float width, float height) {
-    sf::RectangleShape plat({width, height});
-    plat.setPosition({x, y});
-    plat.setTexture(&platformTexture);
-    plat.setTextureRect(sf::IntRect({0, 0}, {static_cast<int>(width), static_cast<int>(height)}));
-    platforms.push_back(plat);
+    level.setupStandardLevel();
+    player.resetPosition(50.f, 720.f - 50.f);
 }
 
 void Game::resetGunTimer() { gunSpawned = false; gunPickup.active = false; targetGunSpawnTime = 15.f + (std::rand() % 5); }
 
-std::vector<float> Game::getValidSpawnY() const {
-    std::vector<float> lanes;
-    lanes.push_back(player.getFloorY());
-    for (const auto& plat : platforms) lanes.push_back(plat.getPosition().y);
-    return lanes;
-}
-
 void Game::processEvents() {
     while (const std::optional event = window.pollEvent()) {
         if (event->is<sf::Event::Closed>()) window.close();
-
         if (const auto* keyEvent = event->getIf<sf::Event::KeyPressed>()) {
-
-            if (keyEvent->code == sf::Keyboard::Key::Q) {
-                window.close();
+            if (keyEvent->code == sf::Keyboard::Key::Q) window.close();
+            if (keyEvent->code == sf::Keyboard::Key::P) {
+                if (gameState == GameState::PLAYING || gameState == GameState::BOSS_FIGHT) isGamePaused = !isGamePaused;
             }
-
-            if (gameState == GameState::MENU) {
-                if (keyEvent->code == sf::Keyboard::Key::S) {
-                    currentScore = 0.f;
-                    setupLevel();
-                    gameState = GameState::PLAYING;
-                } else if (keyEvent->code == sf::Keyboard::Key::A) {
-                    gameState = GameState::ABOUT;
-                }
-            }
-            else if (gameState == GameState::ABOUT) {
-                if (keyEvent->code == sf::Keyboard::Key::B || keyEvent->code == sf::Keyboard::Key::Escape) {
-                    gameState = GameState::MENU;
-                }
-            }
-            else if (gameState == GameState::GAME_OVER || gameState == GameState::WIN) {
-                if (keyEvent->code == sf::Keyboard::Key::R) {
-                    currentScore = 0.f;
-                    setupLevel();
-                    gameState = GameState::PLAYING;
+            if (isGamePaused) {
+                if (keyEvent->code == sf::Keyboard::Key::R) { currentScore = 0.f; setupLevel(); gameState = GameState::PLAYING; }
+                else if (keyEvent->code == sf::Keyboard::Key::M || keyEvent->code == sf::Keyboard::Key::Escape) { isGamePaused = false; gameState = GameState::MENU; }
+            } else {
+                if (gameState == GameState::MENU) {
+                    if (keyEvent->code == sf::Keyboard::Key::S) { currentScore = 0.f; setupLevel(); gameState = GameState::PLAYING; }
+                    else if (keyEvent->code == sf::Keyboard::Key::A) gameState = GameState::ABOUT;
+                } else if (gameState == GameState::ABOUT) {
+                    if (keyEvent->code == sf::Keyboard::Key::B || keyEvent->code == sf::Keyboard::Key::Escape) gameState = GameState::MENU;
+                } else if (gameState == GameState::GAME_OVER || gameState == GameState::WIN) {
+                    if (keyEvent->code == sf::Keyboard::Key::R) { currentScore = 0.f; setupLevel(); gameState = GameState::PLAYING; }
                 }
             }
         }
@@ -233,88 +159,87 @@ void Game::processEvents() {
 }
 
 void Game::spawnCoin() {
+    auto platforms = level.getPlatforms();
     if (platforms.empty()) return;
-    float spawnX, spawnY;
     int pIdx = std::rand() % platforms.size();
-    const auto& plat = platforms[pIdx];
-
-    spawnX = plat.getPosition().x + static_cast<float>(std::rand() % static_cast<int>(std::max(1.f, plat.getSize().x - 20.f)));
-
+    float spawnX = platforms[pIdx].getPosition().x + static_cast<float>(std::rand() % static_cast<int>(std::max(1.f, platforms[pIdx].getSize().x - 20.f)));
     if (spawnX < 50.f) spawnX = 50.f;
     if (spawnX > 1200.f) spawnX = 1200.f;
-
-    spawnY = plat.getPosition().y - 50.f;
+    float spawnY = platforms[pIdx].getPosition().y - 50.f;
 
     coins.emplace_back(spawnX, spawnY);
     coins.back().shape.setFillColor(sf::Color::White);
-    coins.back().shape.setTexture(&coinTex);
-    coins.back().shape.setScale({1.5f, 1.5f});
+    coins.back().shape.setTexture(&assets.getTexture("coin"));
+    coins.back().totalFrames = 12;
+
+    int fW = assets.getTexture("coin").getSize().x / 12;
+    int fH = assets.getTexture("coin").getSize().y;
+    coins.back().shape.setTextureRect(sf::IntRect({0, 0}, {fW, fH}));
+    coins.back().shape.setScale({1.2f, 1.2f});
+}
+
+void Game::setupEnemyAnimation(Enemy& enemy, int enemyType) {
+    if (enemyType == 0) enemy.setAnimation(&assets.getTexture("ghostFly"), 5, &assets.getTexture("ghostDie"), 13);
+    else if (enemyType == 1) enemy.setAnimation(&assets.getTexture("skeletonRun"), 6, &assets.getTexture("skeletonDie"), 13);
 }
 
 void Game::update(float dt) {
-    player.update(dt, platforms, playerBullets);
-    float survivalTime = survivalClock.getElapsedTime().asSeconds();
-    currentScore += 120.f * dt;
+    static bool wasSpacePressed = false;
+    bool isSpacePressed = sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Space);
+    if (isSpacePressed && !wasSpacePressed && player.getHealth() > 0) audio.playSound("jump");
+    wasSpacePressed = isSpacePressed;
+
+    int prevAmmo = player.getAmmo();
+    int prevHealth = player.getHealth();
+
+    player.update(dt, level.getPlatforms(), playerBullets);
+    if (player.getAmmo() < prevAmmo) audio.playSound("shoot");
 
     if (player.getHealth() <= 0) {
-        gameState = GameState::GAME_OVER;
-        stateText.setString("GAME OVER\nScore: " + std::to_string(static_cast<int>(currentScore)) + "\nPress R to Restart\nPress Q to Quit");
-        stateText.setFillColor(sf::Color::Red);
-        sf::FloatRect bounds = stateText.getLocalBounds();
-        stateText.setPosition({640.f - (bounds.size.x / 2.f), 300.f});
+        if (player.isDeadAnimFinished()) gameState = GameState::GAME_OVER;
         return;
     }
 
+    survivalTime += dt; enemySpawnTimer += dt; currentScore += 120.f * dt;
+
     if (!healthPotion.active) {
         healthPotion.cooldownTimer -= dt;
-        if (healthPotion.cooldownTimer <= 0.f && player.getHealth() <= 4) {
+        if (healthPotion.cooldownTimer <= 0.f && player.getHealth() <= 10) {
             healthPotion.active = true;
-            if (!platforms.empty()) {
-                int pIdx = std::rand() % platforms.size();
-                float spawnX = platforms[pIdx].getPosition().x + static_cast<float>(std::rand() % static_cast<int>(std::max(1.f, platforms[pIdx].getSize().x - 15.f)));
-
-                healthPotion.shape.setPosition({spawnX, platforms[pIdx].getPosition().y - 70.f});
-                healthPotion.shape.setFillColor(sf::Color::White);
-                healthPotion.shape.setTexture(&healthTex);
-                healthPotion.shape.setScale({3.0f, 3.0f});
+            if (!level.getPlatforms().empty()) {
+                int pIdx = std::rand() % level.getPlatforms().size();
+                float spawnX = level.getPlatforms()[pIdx].getPosition().x + static_cast<float>(std::rand() % static_cast<int>(std::max(1.f, level.getPlatforms()[pIdx].getSize().x - 15.f)));
+                healthPotion.shape.setPosition({spawnX, level.getPlatforms()[pIdx].getPosition().y - 70.f});
             }
         }
     } else {
         if (player.getBounds().findIntersection(healthPotion.shape.getGlobalBounds())) {
-            player.heal(4); healthPotion.active = false; healthPotion.cooldownTimer = 15.f;
+            player.heal(6); healthPotion.active = false; healthPotion.cooldownTimer = 15.f; audio.playSound("pickup");
         }
     }
 
-    // ARROW PROJECTILES
     for (auto bIt = playerBullets.begin(); bIt != playerBullets.end(); ) {
         if (bIt->shape.getTexture() == nullptr) {
-            bIt->shape.setTexture(&arrowTex);
-            bIt->shape.setFillColor(sf::Color::White);
+            bIt->shape.setTexture(&assets.getTexture("arrow"));
             bIt->shape.setSize({45.f, 15.f});
         }
+        bIt->update(dt); bool hit = false;
 
-        bIt->update(dt);
-        bool hit = false;
         if (gameState == GameState::PLAYING) {
-            for (auto eIt = enemies.begin(); eIt != enemies.end(); ) {
-                if (bIt->getBounds().findIntersection(eIt->getBounds())) {
-                    eIt = enemies.erase(eIt); hit = true; currentScore += 250.f; break;
-                } else ++eIt;
+            for (auto& enemy : enemies) {
+                if (!enemy.isDying && bIt->getBounds().findIntersection(enemy.getBounds())) {
+                    enemy.triggerDeath(); hit = true; currentScore += 250.f; kills++; audio.playSound("hit"); break;
+                }
             }
         } else if (gameState == GameState::BOSS_FIGHT && boss) {
             if (bIt->getBounds().findIntersection(boss->getBounds())) {
                 int damage = bIt->isShotgun ? std::max(1, 4 - static_cast<int>(std::abs(boss->getPosition().x + boss->getSize().x/2.f - bIt->originX) / 150.f)) : 1;
-                boss->takeDamage(damage); currentScore += 100.f * static_cast<float>(damage); hit = true;
+                boss->takeDamage(damage); currentScore += 100.f * static_cast<float>(damage); hit = true; audio.playSound("hit");
 
-                if (boss->getHealth() <= 0) {
+                if (boss->getHealth() <= 0 && boss->isDeadAnimFinished()) {
+                    kills++;
                     currentScore += 5000.f + std::max(0.f, 15000.f - (survivalTime * 150.f));
-
                     gameState = GameState::WIN;
-                    stateText.setString("YOU WIN!\nFinal Score: " + std::to_string(static_cast<int>(currentScore)) + "\nPress R to Restart\nPress Q to Quit");
-                    stateText.setFillColor(sf::Color::Green);
-
-                    sf::FloatRect bounds = stateText.getLocalBounds();
-                    stateText.setPosition({640.f - (bounds.size.x / 2.f), 300.f});
                     return;
                 }
             }
@@ -324,13 +249,13 @@ void Game::update(float dt) {
     }
 
     if (gameState == GameState::PLAYING) {
-        if (!gunSpawned && survivalTime >= targetGunSpawnTime && !platforms.empty()) {
+        if (!gunSpawned && survivalTime >= targetGunSpawnTime && !level.getPlatforms().empty()) {
             gunSpawned = true; gunPickup.active = true;
-            int pIdx = std::rand() % platforms.size();
-            gunPickup.shape.setPosition({platforms[pIdx].getPosition().x + (platforms[pIdx].getSize().x / 2.f) - 12.5f, platforms[pIdx].getPosition().y - 50.f});
+            int pIdx = std::rand() % level.getPlatforms().size();
+            gunPickup.shape.setPosition({level.getPlatforms()[pIdx].getPosition().x + (level.getPlatforms()[pIdx].getSize().x / 2.f) - 12.5f, level.getPlatforms()[pIdx].getPosition().y - 50.f});
         }
         if (gunPickup.active && player.getBounds().findIntersection(gunPickup.shape.getGlobalBounds())) {
-            gunPickup.active = false; player.pickUpGun();
+            gunPickup.active = false; player.pickUpGun(); audio.playSound("pickup");
         }
 
         coinSpawnTimer += dt;
@@ -338,190 +263,101 @@ void Game::update(float dt) {
 
         for (auto cIt = coins.begin(); cIt != coins.end(); ) {
             if (player.getBounds().findIntersection(cIt->shape.getGlobalBounds())) {
-                cIt = coins.erase(cIt); player.addCoin(); currentScore += 500.f;
+                cIt = coins.erase(cIt); player.addCoin(); currentScore += 500.f; audio.playSound("coin");
+
                 if (player.getCoins() >= 8) {
-                    gameState = GameState::BOSS_FIGHT;
-
-                    // FIXED: Now passing '1' to satisfy Player.h
-                    player.triggerBossMode(1);
-
+                    gameState = GameState::BOSS_FIGHT; player.triggerBossMode(1);
                     enemies.clear(); gunPickup.active = false;
 
-                    // FIXED: Now instantiating Level1Boss to satisfy Boss.h
-                    boss = std::make_unique<Level1Boss>(1100.f, 250.f);
-
+                    level.setupBossArena(); // Clear floating platforms!
+                    boss = std::make_unique<Boss>(1100.f, 720.f - 50.f);
+                    boss->setTextures(
+                        assets.getTexture("bossIdle"), assets.getTexture("bossWalk"),
+                        assets.getTexture("bossAttack"), assets.getTexture("bossHit"),
+                        assets.getTexture("bossDeath"), assets.getTexture("bossBullet")
+                    );
                     break;
                 }
             } else ++cIt;
         }
 
         float currentSpawnRate = (survivalTime < 10.f) ? 2.5f : std::max(0.8f, 2.0f - (((static_cast<int>(survivalTime) - 10) / 5) * 0.1f));
-        if (enemySpawnClock.getElapsedTime().asSeconds() >= currentSpawnRate) {
-            enemySpawnClock.restart();
-            std::vector<float> spawnLanes = getValidSpawnY();
+        if (enemySpawnTimer >= currentSpawnRate) {
+            enemySpawnTimer = 0.f; std::vector<float> spawnLanes = level.getValidSpawnY();
             if (!spawnLanes.empty()) {
                 float selectedLaneY = spawnLanes[std::rand() % spawnLanes.size()];
                 bool isOnBottomGround = (selectedLaneY >= 650.f);
+                sf::Vector2f enemySize; int enemyType; float targetY; bool isFlying;
 
-                sf::Vector2f enemySize = {60.0f, 60.0f};
-
-                int enemyType; float targetY; bool isFlying;
-
-                if (isOnBottomGround) {
-                    isFlying = false; enemyType = (std::rand() % 2) + 1;
-                    targetY = selectedLaneY - enemySize.y;
-                } else {
-                    isFlying = true; enemyType = 0;
-                    targetY = selectedLaneY - enemySize.y - 10.f - static_cast<float>(std::rand() % 40);
-                }
+                if (isOnBottomGround) { isFlying = false; enemyType = 1; enemySize = {250.f, 250.f}; targetY = selectedLaneY - enemySize.y + 55.f; }
+                else { isFlying = true; enemyType = 0; enemySize = {200.f, 200.f}; targetY = selectedLaneY - enemySize.y + 30.f - static_cast<float>(std::rand() % 40); }
 
                 float speed = 150.f + (((survivalTime < 10.f) ? 0.f : static_cast<float>(static_cast<int>(survivalTime) - 10) / 5.f) * 40.f) + static_cast<float>(std::rand() % 200);
                 enemies.emplace_back(1300.f, targetY, speed, isFlying);
-
-                if (enemyType == 0) enemies.back().shape.setTexture(&ghostTex);
-                else if (enemyType == 1) enemies.back().shape.setTexture(&skeletonTex);
-                else enemies.back().shape.setTexture(&spiderTex);
-
-                enemies.back().shape.setFillColor(sf::Color::White);
+                setupEnemyAnimation(enemies.back(), enemyType);
                 enemies.back().shape.setSize(enemySize);
             }
         }
 
         for (auto it = enemies.begin(); it != enemies.end(); ) {
-            it->update(dt, platforms);
-            if (player.getBounds().findIntersection(it->getBounds())) { player.takeDamage(2); ++it; }
-            else if (it->getPosition().x + it->getSize().x < 0) it = enemies.erase(it);
-            else ++it;
+            it->update(dt, level.getPlatforms());
+            if (!it->isDying && player.getBounds().findIntersection(it->getBounds())) player.takeDamage(3);
+            if (it->isDead || it->getPosition().x + it->getSize().x < 0) it = enemies.erase(it); else ++it;
         }
     }
     else if (gameState == GameState::BOSS_FIGHT && boss) {
 
-        if (boss->shape.getTexture() == nullptr) {
-            boss->shape.setTexture(&bossTex);
-            boss->shape.setFillColor(sf::Color::White);
+        if (player.getCenter().x < boss->shape.getPosition().x) boss->shape.setScale({1.f, 1.f}); else boss->shape.setScale({-1.f, 1.f});
 
-            boss->shape.setSize({150.f, 150.f});
-
-            sf::Vector2f bSize = boss->shape.getSize();
-            boss->shape.setOrigin({bSize.x / 2.f, bSize.y / 2.f});
-            boss->shape.move({bSize.x / 2.f, bSize.y / 2.f});
-        }
-
-        if (player.getCenter().x < boss->shape.getPosition().x) {
-            boss->shape.setScale({1.f, 1.f});
-        } else {
-            boss->shape.setScale({-1.f, 1.f});
-        }
-
-        boss->update(dt, bossBullets, player.getFloorY(), player.getCenter());
+        float arenaFloor = 720.f - 50.f;
+        boss->update(dt, bossBullets, arenaFloor, player.getCenter());
 
         if (!shieldPickup.active) {
             shieldPickup.cooldownTimer -= dt;
-            if (shieldPickup.cooldownTimer <= 0.f) {
-                shieldPickup.active = true;
-                if (!platforms.empty()) {
-                    int pIdx = std::rand() % platforms.size();
-                    shieldPickup.shape.setPosition({platforms[pIdx].getPosition().x + static_cast<float>(std::rand() % static_cast<int>(std::max(1.f, platforms[pIdx].getSize().x - 24.f))), platforms[pIdx].getPosition().y - 70.f});
-                    shieldPickup.shape.setFillColor(sf::Color::White);
-                    shieldPickup.shape.setTexture(&shieldTex);
-                    shieldPickup.shape.setScale({3.0f, 3.0f});
-                }
+            if (shieldPickup.cooldownTimer <= 0.f && !level.getPlatforms().empty()) {
+                shieldPickup.active = true; int pIdx = std::rand() % level.getPlatforms().size();
+                shieldPickup.shape.setPosition({level.getPlatforms()[pIdx].getPosition().x + static_cast<float>(std::rand() % static_cast<int>(std::max(1.f, level.getPlatforms()[pIdx].getSize().x - 24.f))), level.getPlatforms()[pIdx].getPosition().y - 70.f});
             }
-        } else {
-            if (player.getBounds().findIntersection(shieldPickup.shape.getGlobalBounds())) {
-                player.activateShield(3.0f); shieldPickup.active = false; shieldPickup.cooldownTimer = 20.f;
-            }
+        } else if (player.getBounds().findIntersection(shieldPickup.shape.getGlobalBounds())) {
+            player.activateShield(3.0f); shieldPickup.active = false; shieldPickup.cooldownTimer = 20.f; audio.playSound("pickup");
         }
 
-        if (player.getAmmo() == 0 && !player.getHasShotgun() && !platforms.empty()) {
+        if (player.getAmmo() == 0 && !player.getHasShotgun() && !level.getPlatforms().empty()) {
             shotgunSpawnTimer += dt;
             if (shotgunSpawnTimer >= 6.0f && !shotgunPickup.active) {
-                shotgunPickup.active = true; int pIdx = std::rand() % platforms.size();
-                shotgunPickup.shape.setPosition({platforms[pIdx].getPosition().x + (platforms[pIdx].getSize().x / 2.f) - 17.5f, platforms[pIdx].getPosition().y - 50.f});
+                shotgunPickup.active = true; int pIdx = std::rand() % level.getPlatforms().size();
+                shotgunPickup.shape.setPosition({level.getPlatforms()[pIdx].getPosition().x + (level.getPlatforms()[pIdx].getSize().x / 2.f) - 17.5f, level.getPlatforms()[pIdx].getPosition().y - 50.f});
             }
         } else shotgunSpawnTimer = 0.f;
 
         if (shotgunPickup.active && player.getBounds().findIntersection(shotgunPickup.shape.getGlobalBounds())) {
-            shotgunPickup.active = false; player.pickUpShotgun();
+            shotgunPickup.active = false; player.pickUpShotgun(); audio.playSound("pickup");
         }
 
         for (auto bIt = bossBullets.begin(); bIt != bossBullets.end(); ) {
-            if (bIt->shape.getTexture() == nullptr) {
-                bIt->shape.setTexture(&fireballTex);
-                bIt->shape.setFillColor(sf::Color::White);
-                bIt->shape.setSize({40.f, 20.f});
-                bIt->shape.setOrigin({20.f, 10.f});
-
-                float angle = std::atan2(bIt->velocity.y, bIt->velocity.x) * 180.f / 3.14159f;
-                bIt->shape.setRotation(sf::degrees(angle + 180.f));
-            }
-
             bIt->update(dt);
-            if (player.getBounds().findIntersection(bIt->getBounds())) { player.takeDamage(2); bIt = bossBullets.erase(bIt); }
+            if (player.getBounds().findIntersection(bIt->getBounds())) { player.takeDamage(3); bIt = bossBullets.erase(bIt); }
             else if (bIt->getPosition().x < 0 || bIt->getPosition().x > 1280 || bIt->getPosition().y < 0 || bIt->getPosition().y > 720) bIt = bossBullets.erase(bIt);
             else ++bIt;
         }
     }
 
-    scoreText.setString("Score: " + std::to_string(static_cast<int>(currentScore)));
-    sf::FloatRect bounds = scoreText.getLocalBounds();
-    scoreText.setPosition({640.f - (bounds.size.x / 2.f), 20.f});
-    coinText.setString("Coins: " + std::to_string(player.getCoins()) + "/8");
+    if (player.getHealth() < prevHealth) audio.playSound("hurt");
+    for (auto& coin : coins) coin.update(dt);
 }
 
 void Game::render() {
     window.clear(sf::Color(30, 30, 30));
 
-    window.draw(backSprite);
-    window.draw(farSprite);
-    window.draw(middleSprite);
+    // Managers do the rendering!
+    level.drawBackgrounds(window);
 
     if (gameState == GameState::MENU || gameState == GameState::ABOUT) {
-        sf::RectangleShape overlay({1280.f, 720.f});
-        overlay.setFillColor(sf::Color(0, 0, 0, 150));
-        window.draw(overlay);
-
-        sf::Text menuText(font);
-        menuText.setFillColor(sf::Color::White);
-        menuText.setOutlineColor(sf::Color::Black);
-        menuText.setOutlineThickness(3.f);
-
-        if (gameState == GameState::MENU) {
-            menuText.setCharacterSize(80);
-            menuText.setFillColor(sf::Color::Yellow);
-            menuText.setString("FOREST PLATFORMER");
-            sf::FloatRect bounds = menuText.getLocalBounds();
-            menuText.setPosition({640.f - bounds.size.x / 2.f, 150.f});
-            window.draw(menuText);
-
-            menuText.setCharacterSize(35);
-            menuText.setFillColor(sf::Color::White);
-            menuText.setString("Press 'S' to Start\n\nPress 'A' for About\n\nPress 'Q' to Quit");
-            bounds = menuText.getLocalBounds();
-            menuText.setPosition({640.f - bounds.size.x / 2.f, 350.f});
-            window.draw(menuText);
-        }
-        else if (gameState == GameState::ABOUT) {
-            menuText.setCharacterSize(60);
-            menuText.setFillColor(sf::Color::Cyan);
-            menuText.setString("HOW TO PLAY");
-            sf::FloatRect bounds = menuText.getLocalBounds();
-            menuText.setPosition({640.f - bounds.size.x / 2.f, 100.f});
-            window.draw(menuText);
-
-            menuText.setCharacterSize(30);
-            menuText.setFillColor(sf::Color::White);
-            menuText.setString("Left / Right Arrows  :  Move\nSpacebar  :  Jump\nX  :  Shoot Weapon\n\nCollect 8 Coins to summon the Boss!\nSurvive and defeat the Boss to win.\n\nPress 'B' to Return to Menu\nPress 'Q' to Quit");
-            bounds = menuText.getLocalBounds();
-            menuText.setPosition({640.f - bounds.size.x / 2.f, 250.f});
-            window.draw(menuText);
-        }
-
-        window.display();
-        return;
+        ui.drawMenus(window, gameState);
+        window.display(); return;
     }
 
-    for (const auto& platform : platforms) window.draw(platform);
+    level.drawPlatforms(window);
 
     for (const auto& enemy : enemies) enemy.draw(window);
     for (const auto& coin : coins) window.draw(coin.shape);
@@ -535,33 +371,20 @@ void Game::render() {
 
     if (gameState == GameState::BOSS_FIGHT && boss) {
         boss->draw(window);
-
-        float bossHealthPercent = boss->getHealth() / static_cast<float>(boss->getMaxHealth());
-        int heartsToDraw = static_cast<int>(bossHealthPercent * 10.f);
-
-        for (int i = 0; i < heartsToDraw; ++i) {
-            bossHeartSprite.setPosition({20.f + (i * 45.f), 100.f});
-            window.draw(bossHeartSprite);
-        }
     }
 
     player.draw(window);
-    window.draw(scoreText);
-    if (gameState == GameState::PLAYING) window.draw(coinText);
 
-    for (int i = 0; i < player.getHealth(); ++i) {
-        playerHeartSprite.setPosition({20.f + (i * 45.f), 60.f});
-        window.draw(playerHeartSprite);
+    // Draw the entire UI in one clean function call
+    ui.drawHUD(window, player, boss.get(), static_cast<int>(currentScore), kills, gameState);
+
+    if (isGamePaused && (gameState == GameState::PLAYING || gameState == GameState::BOSS_FIGHT)) {
+        ui.drawPauseScreen(window);
     }
 
-    if (player.getHasWeapon()) {
-        for (int i = 0; i < player.getClipAmmo(); ++i) {
-            ammoIconSprite.setColor(player.getHasShotgun() ? sf::Color(255, 165, 0) : sf::Color::White);
-            ammoIconSprite.setPosition({1250.f - (i * 30.f), 60.f});
-            window.draw(ammoIconSprite);
-        }
+    if (gameState == GameState::GAME_OVER || gameState == GameState::WIN) {
+        ui.drawGameOverScreen(window, gameState, static_cast<int>(currentScore), kills);
     }
 
-    if (gameState == GameState::GAME_OVER || gameState == GameState::WIN) window.draw(stateText);
     window.display();
 }
