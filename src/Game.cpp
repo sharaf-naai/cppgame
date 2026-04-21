@@ -14,7 +14,7 @@ Game::Game()
     std::srand(static_cast<unsigned>(std::time(nullptr)));
 
     // Update this path if your Assets folder moves!
-    std::string path = "C:/Users/chara/Desktop/cmake-sfml-project-master/cmake-sfml-project-master/Assets/";
+    std::string path = "Assets/";
 
     // 1. Load Audio
     audio.playMusic("backmusic.wav", path);
