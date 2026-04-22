@@ -4,7 +4,6 @@
 UIManager::UIManager() {}
 
 void UIManager::init(const sf::Font& font, const sf::Texture& heartTex, const sf::Texture& bossHeartTex, const sf::Texture& ammoTex) {
-    // --- Setup Text ---
     scoreText = std::make_unique<sf::Text>(font, "", 24);
     scoreText->setFillColor(sf::Color::White);
     scoreText->setOutlineColor(sf::Color::Black);
@@ -30,7 +29,6 @@ void UIManager::init(const sf::Font& font, const sf::Texture& heartTex, const sf
     menuText->setOutlineColor(sf::Color::Black);
     menuText->setOutlineThickness(3.f);
 
-    // --- Setup Sprites ---
     playerHeartSprite = std::make_unique<sf::Sprite>(heartTex);
     playerHeartSprite->setScale({2.5f, 2.5f});
 
@@ -46,7 +44,7 @@ void UIManager::init(const sf::Font& font, const sf::Texture& heartTex, const sf
 }
 
 void UIManager::drawHUD(sf::RenderWindow& window, Player& player, Boss* boss, int score, int kills, GameState state) {
-    if (!scoreText) return; // Failsafe if init wasn't called
+    if (!scoreText) return;
 
     scoreText->setString("Score: " + std::to_string(score));
     sf::FloatRect bounds = scoreText->getLocalBounds();
@@ -62,8 +60,7 @@ void UIManager::drawHUD(sf::RenderWindow& window, Player& player, Boss* boss, in
     }
 
     if (state == GameState::BOSS_FIGHT && boss) {
-        float bossHealthPercent = boss->getHealth() / static_cast<float>(boss->getMaxHealth());
-        int heartsToDraw = static_cast<int>(bossHealthPercent * 10.f);
+        int heartsToDraw = static_cast<int>((boss->getHealth() / static_cast<float>(boss->getMaxHealth())) * 10.f);
         for (int i = 0; i < heartsToDraw; ++i) {
             bossHeartSprite->setPosition({20.f + (i * 45.f), 100.f});
             window.draw(*bossHeartSprite);
@@ -73,8 +70,7 @@ void UIManager::drawHUD(sf::RenderWindow& window, Player& player, Boss* boss, in
     int fullHearts = player.getHealth() / 2;
     bool hasHalfHeart = player.getHealth() % 2 != 0;
 
-    // SFML 3 Fix: getTexture() returns a reference, use the dot operator (.)
-    int hWidth = playerHeartSprite->getTexture().getSize().x;
+    int hWidth  = playerHeartSprite->getTexture().getSize().x;
     int hHeight = playerHeartSprite->getTexture().getSize().y;
 
     for (int i = 0; i < fullHearts; ++i) {

@@ -8,7 +8,6 @@ private:
     sf::RectangleShape shape;
     sf::Vector2f velocity;
 
-    // NEW: 16 HP = 8 Full Hearts
     int health = 16;
     int maxHealth = 16;
 

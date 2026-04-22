@@ -25,8 +25,6 @@ private:
     bool hasFired;
 
 public:
-    sf::RectangleShape shape;
-
     Boss(float x, float y);
     void setTextures(const sf::Texture& idle, const sf::Texture& walk, const sf::Texture& atk, const sf::Texture& hit, const sf::Texture& dead, const sf::Texture& bullet);
     void update(float dt, std::vector<Bullet>& bossBullets, float floorY, sf::Vector2f playerCenter);
@@ -35,8 +33,6 @@ public:
     int getHealth() const { return health; }
     int getMaxHealth() const { return maxHealth; }
     sf::FloatRect getBounds() const;
-    sf::Vector2f getPosition() const { return shape.getPosition(); }
-    sf::Vector2f getSize() const { return shape.getSize(); }
 
     bool isDeadAnimFinished() const;
     void draw(sf::RenderWindow& window);

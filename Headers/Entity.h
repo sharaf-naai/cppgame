@@ -4,8 +4,7 @@
 class Entity {
 public:
     sf::RectangleShape shape;
-    
-public:
+
     virtual ~Entity() = default;
 
     virtual void draw(sf::RenderWindow& window) const {

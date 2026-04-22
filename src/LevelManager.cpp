@@ -5,7 +5,6 @@ LevelManager::LevelManager() : platformTexture(nullptr) {}
 void LevelManager::initBackgrounds(const sf::Texture& back, const sf::Texture& far, const sf::Texture& mid) {
     float scale = 720.f / static_cast<float>(back.getSize().y);
 
-    // SFML 3 Fix: Create the sprites dynamically once the textures exist
     backSprite = std::make_unique<sf::Sprite>(back);
     backSprite->setScale({scale, scale});
     backSprite->setTextureRect(sf::IntRect({0, 0}, {static_cast<int>(1280.f / scale), static_cast<int>(back.getSize().y)}));
@@ -39,11 +38,11 @@ void LevelManager::setupStandardLevel() {
     platforms.clear();
     float platHeight = 50.f;
     createPlatform(-100.f, 720.f - platHeight, 2000.f, platHeight);
-    createPlatform(150.f, 480.f, 200.f, platHeight);
-    createPlatform(450.f, 400.f, 250.f, platHeight);
-    createPlatform(850.f, 450.f, 180.f, platHeight);
+    createPlatform(150.f,  480.f, 200.f, platHeight);
+    createPlatform(450.f,  400.f, 250.f, platHeight);
+    createPlatform(850.f,  450.f, 180.f, platHeight);
     createPlatform(1050.f, 250.f, 200.f, platHeight);
-    createPlatform(300.f, 200.f, 150.f, platHeight);
+    createPlatform(300.f,  200.f, 150.f, platHeight);
 }
 
 void LevelManager::setupBossArena() {
@@ -52,15 +51,14 @@ void LevelManager::setupBossArena() {
 }
 
 void LevelManager::drawBackgrounds(sf::RenderWindow& window) {
-    if(backSprite) window.draw(*backSprite);
-    if(farSprite) window.draw(*farSprite);
-    if(middleSprite) window.draw(*middleSprite);
+    if (backSprite)   window.draw(*backSprite);
+    if (farSprite)    window.draw(*farSprite);
+    if (middleSprite) window.draw(*middleSprite);
 }
 
 void LevelManager::drawPlatforms(sf::RenderWindow& window) {
-    for (const auto& platform : platforms) {
+    for (const auto& platform : platforms)
         window.draw(platform);
-    }
 }
 
 const std::vector<sf::RectangleShape>& LevelManager::getPlatforms() const {
@@ -69,8 +67,7 @@ const std::vector<sf::RectangleShape>& LevelManager::getPlatforms() const {
 
 std::vector<float> LevelManager::getValidSpawnY() const {
     std::vector<float> lanes;
-    for (const auto& plat : platforms) {
+    for (const auto& plat : platforms)
         lanes.push_back(plat.getPosition().y);
-    }
     return lanes;
 }

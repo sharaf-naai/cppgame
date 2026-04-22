@@ -5,12 +5,10 @@
 
 class Bullet : public Entity {
 public:
-    sf::RectangleShape shape;
     sf::Vector2f velocity;
     bool isShotgun;
     float originX;
 
-    // NEW: Animation support for Bullets!
     int totalFrames = 1;
     int currentFrame = 0;
     float frameTimer = 0.f;
@@ -24,7 +22,6 @@ public:
     void update(float dt) {
         shape.move({velocity.x * dt, velocity.y * dt});
 
-        // Animate the bullet if it has multiple frames (like BulletSpider)
         if (shape.getTexture() && totalFrames > 1) {
             frameTimer += dt;
             if (frameTimer >= 0.08f) {
@@ -36,10 +33,6 @@ public:
             }
         }
     }
-
-    sf::FloatRect getBounds() const { return shape.getGlobalBounds(); }
-    sf::Vector2f getPosition() const { return shape.getPosition(); }
-    void draw(sf::RenderWindow& window) const { window.draw(shape); }
 };
 
 struct Coin {
@@ -68,10 +61,10 @@ struct Coin {
     }
 };
 
-struct GunPickup { sf::RectangleShape shape; bool active = false; };
+struct GunPickup     { sf::RectangleShape shape; bool active = false; };
 struct ShotgunPickup { sf::RectangleShape shape; bool active = false; };
-struct HealthPotion { sf::RectangleShape shape; bool active = false; float cooldownTimer = 0.f; };
-struct ShieldPickup { sf::RectangleShape shape; bool active = false; float cooldownTimer = 0.f; };
+struct HealthPotion  { sf::RectangleShape shape; bool active = false; float cooldownTimer = 0.f; };
+struct ShieldPickup  { sf::RectangleShape shape; bool active = false; float cooldownTimer = 0.f; };
 
 class Enemy {
 public:
@@ -97,7 +90,6 @@ public:
     void setAnimation(const sf::Texture* run, int rFrames, const sf::Texture* die, int dFrames) {
         runSheet = run; runFrames = rFrames;
         dieSheet = die; dieFrames = dFrames;
-
         currentSheet = runSheet; totalFrames = runFrames;
         shape.setTexture(currentSheet);
 
@@ -127,7 +119,6 @@ public:
 
         if (currentSheet) {
             frameTimer += dt;
-
             if (frameTimer >= frameDuration) {
                 frameTimer -= frameDuration;
                 currentFrame++;
@@ -145,9 +136,12 @@ public:
 
     sf::FloatRect getBounds() const {
         sf::FloatRect visual = shape.getGlobalBounds();
-        float hitW = visual.size.x * 0.35f; float hitH = visual.size.y * 0.5f;
+        float hitW = visual.size.x * 0.35f;
+        float hitH = visual.size.y * 0.5f;
         float hitX = visual.position.x + (visual.size.x - hitW) / 2.f;
-        float hitY = isFlying ? visual.position.y + (visual.size.y - hitH) / 2.f : visual.position.y + visual.size.y - hitH - (visual.size.y * 0.15f);
+        float hitY = isFlying
+            ? visual.position.y + (visual.size.y - hitH) / 2.f
+            : visual.position.y + visual.size.y - hitH - (visual.size.y * 0.15f);
         return sf::FloatRect({hitX, hitY}, {hitW, hitH});
     }
 

@@ -1,6 +1,5 @@
 #include "Player.h"
 #include <cmath>
-#include <iostream>
 
 Player::Player(float x, float y) {
     shape.setSize({150.f, 150.f});
@@ -16,13 +15,7 @@ void Player::setAnimationTextures(const sf::Texture& idle, const sf::Texture& ru
 
 sf::FloatRect Player::getBounds() const {
     sf::Vector2f pos = shape.getPosition();
-    float hitWidth = 40.f;
-    float hitHeight = 70.f;
-
-    float hitX = pos.x - (hitWidth / 2.f);
-    float hitY = pos.y + 75.f - hitHeight - 5.f;
-
-    return sf::FloatRect({hitX, hitY}, {hitWidth, hitHeight});
+    return sf::FloatRect({pos.x - 20.f, pos.y + 75.f - 70.f - 5.f}, {40.f, 70.f});
 }
 
 sf::Vector2f Player::getCenter() const {
@@ -52,36 +45,32 @@ void Player::activateShield(float duration) { shieldTimer = duration; }
 
 void Player::triggerRecharge() {
     int maxClip = hasShotgun ? 3 : 6;
-
     if (hasWeapon && rechargeTex && clipAmmo < maxClip && ammo > 0) {
-        int needed = maxClip - clipAmmo;
-        int reloadAmount = std::min(needed, ammo);
-
+        int reloadAmount = std::min(maxClip - clipAmmo, ammo);
         clipAmmo += reloadAmount;
         ammo -= reloadAmount;
-
         int totalFrames = rechargeTex->getSize().x / rechargeTex->getSize().y;
         rechargingTimer = totalFrames * 0.08f;
     }
 }
 
-void Player::pickUpGun() { hasWeapon = true; hasShotgun = false; ammo = 30; clipAmmo = 0; triggerRecharge(); }
-void Player::pickUpShotgun() { hasWeapon = true; hasShotgun = true; ammo = 15; clipAmmo = 0; triggerRecharge(); }
+void Player::pickUpGun()     { hasWeapon = true; hasShotgun = false; ammo = 30; clipAmmo = 0; triggerRecharge(); }
+void Player::pickUpShotgun() { hasWeapon = true; hasShotgun = true;  ammo = 15; clipAmmo = 0; triggerRecharge(); }
 void Player::triggerBossMode(int level) { coins = 0; }
+
 void Player::resetPosition(float x, float y) {
     shape.setPosition({x, y}); velocity = {0.f, 0.f}; health = maxHealth; hasWeapon = false; currentFrame = 0;
 }
 
 void Player::update(float dt, const std::vector<sf::RectangleShape>& platforms, std::vector<Bullet>& bullets) {
     if (invincibilityTimer > 0.f) invincibilityTimer -= dt;
-    if (shieldTimer > 0.f) shieldTimer -= dt;
-    if (shootCooldown > 0.f) shootCooldown -= dt;
-    if (shootingAnimTimer > 0.f) shootingAnimTimer -= dt;
-    if (rechargingTimer > 0.f) rechargingTimer -= dt;
+    if (shieldTimer > 0.f)        shieldTimer -= dt;
+    if (shootCooldown > 0.f)      shootCooldown -= dt;
+    if (shootingAnimTimer > 0.f)  shootingAnimTimer -= dt;
+    if (rechargingTimer > 0.f)    rechargingTimer -= dt;
 
-    if (hasWeapon && clipAmmo == 0 && ammo > 0 && rechargingTimer <= 0.f) {
+    if (hasWeapon && clipAmmo == 0 && ammo > 0 && rechargingTimer <= 0.f)
         triggerRecharge();
-    }
 
     velocity.y += 1400.f * dt;
 
@@ -92,8 +81,9 @@ void Player::update(float dt, const std::vector<sf::RectangleShape>& platforms, 
         sf::FloatRect bounds = getBounds();
         for (const auto& plat : platforms) {
             sf::FloatRect pBounds = plat.getGlobalBounds();
-            if (bounds.findIntersection(pBounds)) {
-                if (velocity.y > 0) { shape.move({0.f, -(bounds.position.y + bounds.size.y - pBounds.position.y)}); velocity.y = 0.f; onGround = true; }
+            if (bounds.findIntersection(pBounds) && velocity.y > 0) {
+                shape.move({0.f, -(bounds.position.y + bounds.size.y - pBounds.position.y)});
+                velocity.y = 0.f; onGround = true;
             }
         }
         updateAnimation(dt);
@@ -102,9 +92,8 @@ void Player::update(float dt, const std::vector<sf::RectangleShape>& platforms, 
 
     velocity.x = 0.f;
     if (rechargingTimer <= 0.f && shootingAnimTimer <= 0.f) {
-        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Left)) { velocity.x = -350.f; facingRight = false; }
-        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Right)) { velocity.x = 350.f; facingRight = true; }
-        // 20% lower jump height as requested
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Left))  { velocity.x = -350.f; facingRight = false; }
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Right)) { velocity.x =  350.f; facingRight = true; }
         if (onGround && sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Space)) { velocity.y = -820.f; onGround = false; }
         if (onGround && sf::Keyboard::isKeyPressed(sf::Keyboard::Key::C)) triggerRecharge();
     }
@@ -127,8 +116,7 @@ void Player::update(float dt, const std::vector<sf::RectangleShape>& platforms, 
         if (bounds.findIntersection(pBounds)) {
             if (velocity.y > 0) {
                 shape.move({0.f, -(bounds.position.y + bounds.size.y - pBounds.position.y)});
-                velocity.y = 0.f;
-                onGround = true;
+                velocity.y = 0.f; onGround = true;
             } else if (velocity.y < 0) {
                 shape.move({0.f, pBounds.position.y + pBounds.size.y - bounds.position.y});
                 velocity.y = 0.f;
@@ -137,20 +125,22 @@ void Player::update(float dt, const std::vector<sf::RectangleShape>& platforms, 
     }
 
     sf::FloatRect screenBounds = getBounds();
-    if (screenBounds.position.x < 0.f) shape.move({-screenBounds.position.x, 0.f});
-    if (screenBounds.position.x + screenBounds.size.x > 1280.f) shape.move({1280.f - (screenBounds.position.x + screenBounds.size.x), 0.f});
+    if (screenBounds.position.x < 0.f)
+        shape.move({-screenBounds.position.x, 0.f});
+    if (screenBounds.position.x + screenBounds.size.x > 1280.f)
+        shape.move({1280.f - (screenBounds.position.x + screenBounds.size.x), 0.f});
 
     if (hasWeapon && clipAmmo > 0 && shootCooldown <= 0.f && rechargingTimer <= 0.f && sf::Keyboard::isKeyPressed(sf::Keyboard::Key::X)) {
         float dir = facingRight ? 1.f : -1.f;
         sf::Vector2f spawnPos = getCenter();
 
         if (hasShotgun) {
-            Bullet b1(spawnPos.x, spawnPos.y, sf::Vector2f(dir * 800.f, -100.f), true); b1.originX = spawnPos.x; bullets.push_back(b1);
-            Bullet b2(spawnPos.x, spawnPos.y, sf::Vector2f(dir * 800.f, 0.f), true); b2.originX = spawnPos.x; bullets.push_back(b2);
-            Bullet b3(spawnPos.x, spawnPos.y, sf::Vector2f(dir * 800.f, 100.f), true); b3.originX = spawnPos.x; bullets.push_back(b3);
+            Bullet b1(spawnPos.x, spawnPos.y, {dir * 800.f, -100.f}, true); b1.originX = spawnPos.x; bullets.push_back(b1);
+            Bullet b2(spawnPos.x, spawnPos.y, {dir * 800.f,    0.f}, true); b2.originX = spawnPos.x; bullets.push_back(b2);
+            Bullet b3(spawnPos.x, spawnPos.y, {dir * 800.f,  100.f}, true); b3.originX = spawnPos.x; bullets.push_back(b3);
             shootCooldown = 0.8f;
         } else {
-            Bullet b(spawnPos.x, spawnPos.y, sf::Vector2f(dir * 1000.f, 0.f), false); b.originX = spawnPos.x; bullets.push_back(b);
+            Bullet b(spawnPos.x, spawnPos.y, {dir * 1000.f, 0.f}, false); b.originX = spawnPos.x; bullets.push_back(b);
             shootCooldown = 0.3f;
         }
 
@@ -165,13 +155,13 @@ void Player::updateAnimation(float dt) {
     const sf::Texture* targetSheet = idleTex;
     float animSpeed = 0.08f;
 
-    if (health <= 0) { targetSheet = deadTex; animSpeed = 0.1f; }
-    else if (invincibilityTimer > 0.6f && hurtTex) { targetSheet = hurtTex; animSpeed = 0.1f; }
-    else if (rechargingTimer > 0.f && rechargeTex) { targetSheet = rechargeTex; animSpeed = 0.08f; }
-    else if (shootingAnimTimer > 0.f && shotTex) { targetSheet = shotTex; animSpeed = 0.05f; }
-    else if (!onGround && jumpTex) { targetSheet = jumpTex; animSpeed = 0.08f; }
-    else if (std::abs(velocity.x) > 0.1f && runTex) { targetSheet = runTex; animSpeed = 0.08f; }
-    else { targetSheet = idleTex; animSpeed = 0.1f; }
+    if      (health <= 0)                            { targetSheet = deadTex;    animSpeed = 0.1f;  }
+    else if (invincibilityTimer > 0.6f && hurtTex)  { targetSheet = hurtTex;    animSpeed = 0.1f;  }
+    else if (rechargingTimer > 0.f && rechargeTex)  { targetSheet = rechargeTex; animSpeed = 0.08f; }
+    else if (shootingAnimTimer > 0.f && shotTex)    { targetSheet = shotTex;    animSpeed = 0.05f; }
+    else if (!onGround && jumpTex)                  { targetSheet = jumpTex;    animSpeed = 0.08f; }
+    else if (std::abs(velocity.x) > 0.1f && runTex){ targetSheet = runTex;     animSpeed = 0.08f; }
+    else                                            { targetSheet = idleTex;    animSpeed = 0.1f;  }
 
     if (shape.getTexture() != targetSheet) {
         shape.setTexture(targetSheet);
@@ -179,25 +169,20 @@ void Player::updateAnimation(float dt) {
         frameTimer = 0.f;
     }
 
-    int targetFrames = 1;
-    int fH = 150;
+    int targetFrames = 1, fH = 150;
     if (targetSheet && targetSheet->getSize().y > 0) {
         targetFrames = targetSheet->getSize().x / targetSheet->getSize().y;
         if (targetFrames <= 0) targetFrames = 1;
         fH = targetSheet->getSize().y;
     }
 
-    if (targetSheet == deadTex && currentFrame == targetFrames - 1) {
-        // Do nothing! Let the player lie dead
-    } else {
+    if (targetSheet != deadTex || currentFrame < targetFrames - 1) {
         frameTimer += dt;
         if (frameTimer >= animSpeed) {
             frameTimer -= animSpeed;
             currentFrame++;
-            if (currentFrame >= targetFrames) {
-                if (targetSheet == deadTex) currentFrame = targetFrames - 1;
-                else currentFrame = 0;
-            }
+            if (currentFrame >= targetFrames)
+                currentFrame = (targetSheet == deadTex) ? targetFrames - 1 : 0;
         }
     }
 
@@ -205,25 +190,18 @@ void Player::updateAnimation(float dt) {
 }
 
 void Player::draw(sf::RenderWindow& window) {
-    if (facingRight) shape.setScale({1.f, 1.f});
-    else shape.setScale({-1.f, 1.f});
-
-    if (invincibilityTimer > 0.f && static_cast<int>(invincibilityTimer * 10) % 2 == 0) shape.setFillColor(sf::Color(255, 100, 100));
-    else shape.setFillColor(sf::Color::White);
-
+    shape.setScale(facingRight ? sf::Vector2f{1.f, 1.f} : sf::Vector2f{-1.f, 1.f});
+    shape.setFillColor((invincibilityTimer > 0.f && static_cast<int>(invincibilityTimer * 10) % 2 == 0)
+        ? sf::Color(255, 100, 100) : sf::Color::White);
     window.draw(shape);
 
-    // --- NEW: CYAN SHIELD BUBBLE ---
     if (shieldTimer > 0.f) {
         sf::CircleShape shieldBubble(80.f);
-        shieldBubble.setOrigin({80.f, 80.f}); // Center it exactly over the player
+        shieldBubble.setOrigin({80.f, 80.f});
         shieldBubble.setPosition(getCenter());
-
-        // Semi-transparent glowing inside with a solid bright border
         shieldBubble.setFillColor(sf::Color(0, 255, 255, 80));
         shieldBubble.setOutlineColor(sf::Color::Cyan);
         shieldBubble.setOutlineThickness(3.f);
-
         window.draw(shieldBubble);
     }
 }

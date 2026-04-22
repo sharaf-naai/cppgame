@@ -9,7 +9,6 @@ class UIManager {
 private:
     std::unique_ptr<sf::Text> scoreText;
     std::unique_ptr<sf::Text> coinText;
-    std::unique_ptr<sf::Text> ammoText;
     std::unique_ptr<sf::Text> killText;
     std::unique_ptr<sf::Text> stateText;
     std::unique_ptr<sf::Text> menuText;

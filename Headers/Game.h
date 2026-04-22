@@ -8,7 +8,6 @@
 #include "Boss.h"
 #include "WorldObjects.h"
 
-// Your beautiful new architecture
 #include "AssetManager.h"
 #include "AudioManager.h"
 #include "UIManager.h"

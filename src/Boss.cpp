@@ -25,8 +25,7 @@ void Boss::setTextures(const sf::Texture& idle, const sf::Texture& walk, const s
 
 sf::FloatRect Boss::getBounds() const {
     sf::Vector2f pos = shape.getPosition();
-    float hitW = 325.f;
-    float hitH = 225.f;
+    float hitW = 325.f, hitH = 225.f;
     float actualFloorY = pos.y - 175.f;
     return sf::FloatRect({pos.x - hitW / 2.f, actualFloorY - hitH}, {hitW, hitH});
 }
@@ -44,7 +43,6 @@ bool Boss::isDeadAnimFinished() const {
 }
 
 void Boss::update(float dt, std::vector<Bullet>& bossBullets, float floorY, sf::Vector2f playerCenter) {
-
     shape.setPosition({shape.getPosition().x, floorY + 175.f});
 
     const sf::Texture* targetSheet = idleTex;
@@ -61,32 +59,18 @@ void Boss::update(float dt, std::vector<Bullet>& bossBullets, float floorY, sf::
 
         if (currentFrame == 3 && !hasFired) {
             float dir = facingRight ? 1.f : -1.f;
-
-            // Adjust the spawn position slightly lower to match the mouth
             sf::Vector2f bPos = shape.getPosition() + sf::Vector2f(dir * 150.f, -220.f);
 
-            // --- NEW TARGETING MATH ---
-            // Calculate the exact line from the boss's mouth to the player's chest!
             sf::Vector2f direction = playerCenter - bPos;
             float distance = std::sqrt(direction.x * direction.x + direction.y * direction.y);
-
-            sf::Vector2f bVel;
-            if (distance != 0) {
-                // Normalize the vector and multiply by speed
-                bVel = (direction / distance) * 700.f;
-            } else {
-                bVel = sf::Vector2f(dir * 700.f, 0.f); // Fallback
-            }
-            // ---------------------------
+            sf::Vector2f bVel = (distance != 0) ? (direction / distance) * 700.f : sf::Vector2f(dir * 700.f, 0.f);
 
             Bullet b(bPos.x, bPos.y, bVel, false, sf::Color::White);
-
             b.shape.setSize({120.f, 120.f});
             b.shape.setOrigin({60.f, 60.f});
             b.shape.setTexture(bulletTex);
             b.totalFrames = 4;
             b.originX = bPos.x;
-
             bossBullets.push_back(b);
             hasFired = true;
         }
@@ -114,9 +98,7 @@ void Boss::update(float dt, std::vector<Bullet>& bossBullets, float floorY, sf::
         frameTimer = 0.f;
     }
 
-    if (targetSheet == deadTex && currentFrame == targetFrames - 1) {
-        // Stay dead
-    } else {
+    if (targetSheet != deadTex || currentFrame < targetFrames - 1) {
         frameTimer += dt;
         if (frameTimer >= animSpeed) {
             frameTimer -= animSpeed;
@@ -125,10 +107,7 @@ void Boss::update(float dt, std::vector<Bullet>& bossBullets, float floorY, sf::
                 if (targetSheet == deadTex) currentFrame = targetFrames - 1;
                 else {
                     currentFrame = 0;
-                    if (isAttacking) {
-                        isAttacking = false;
-                        attackCooldown = 2.0f;
-                    }
+                    if (isAttacking) { isAttacking = false; attackCooldown = 2.0f; }
                 }
             }
         }
@@ -142,11 +121,7 @@ void Boss::update(float dt, std::vector<Bullet>& bossBullets, float floorY, sf::
 }
 
 void Boss::draw(sf::RenderWindow& window) {
-    if (facingRight) shape.setScale({-1.f, 1.f});
-    else shape.setScale({1.f, 1.f});
-
-    if (hitTimer > 0.f) shape.setFillColor(sf::Color(255, 100, 100));
-    else shape.setFillColor(sf::Color::White);
-
+    shape.setScale(facingRight ? sf::Vector2f{-1.f, 1.f} : sf::Vector2f{1.f, 1.f});
+    shape.setFillColor(hitTimer > 0.f ? sf::Color(255, 100, 100) : sf::Color::White);
     window.draw(shape);
 }
